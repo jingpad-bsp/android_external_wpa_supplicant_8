@@ -592,6 +592,14 @@ wpa_auth_sta_init(struct wpa_authenticator *wpa_auth, const u8 *addr,
 {
 	struct wpa_state_machine *sm;
 
+	/* null pointer dereference when softap reset,
+	 * wpa_auth->group may set to null when deinit */
+	if (wpa_auth == NULL || wpa_auth->group == NULL) {
+		wpa_printf(MSG_INFO, "WPA: wpa_auth_sta_init: wpa_auth OR wpa_auth->group is NULL");
+		return NULL;
+	}
+
+
 	if (wpa_auth->group->wpa_group_state == WPA_GROUP_FATAL_FAILURE)
 		return NULL;
 

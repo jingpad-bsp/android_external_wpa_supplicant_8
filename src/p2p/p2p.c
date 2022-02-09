@@ -8,6 +8,7 @@
 
 #include "includes.h"
 
+#include <log/log.h>
 #include "common.h"
 #include "eloop.h"
 #include "common/defs.h"
@@ -235,6 +236,7 @@ void p2p_go_neg_failed(struct p2p_data *p2p, int status)
 		p2p_set_state(p2p, P2P_IDLE);
 	}
 
+	peer->go_neg_req_sent = 0;
 	peer->flags &= ~P2P_DEV_PEER_WAITING_RESPONSE;
 	peer->wps_method = WPS_NOT_READY;
 	peer->oob_pw_id = 0;
@@ -453,6 +455,10 @@ static void p2p_copy_client_info(struct p2p_device *dev,
 	dev->info.config_methods = cli->config_methods;
 	os_memcpy(dev->info.pri_dev_type, cli->pri_dev_type, 8);
 	dev->info.wps_sec_dev_type_list_len = 8 * cli->num_sec_dev_types;
+	if (dev->info.wps_sec_dev_type_list_len > WPS_SEC_DEV_TYPE_MAX_LEN) {
+		android_errorWriteLog(0x534e4554, "172937525");
+		dev->info.wps_sec_dev_type_list_len = WPS_SEC_DEV_TYPE_MAX_LEN;
+	}
 	os_memcpy(dev->info.wps_sec_dev_type_list, cli->sec_dev_types,
 		  dev->info.wps_sec_dev_type_list_len);
 }

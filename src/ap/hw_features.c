@@ -24,7 +24,6 @@
 #include "beacon.h"
 #include "hw_features.h"
 
-
 void hostapd_free_hw_features(struct hostapd_hw_modes *hw_features,
 			      size_t num_hw_features)
 {
@@ -43,6 +42,7 @@ void hostapd_free_hw_features(struct hostapd_hw_modes *hw_features,
 
 
 #ifndef CONFIG_NO_STDOUT_DEBUG
+
 static char * dfs_info(struct hostapd_channel_data *chan)
 {
 	static char info[256];
@@ -71,7 +71,6 @@ static char * dfs_info(struct hostapd_channel_data *chan)
 }
 #endif /* CONFIG_NO_STDOUT_DEBUG */
 
-
 int hostapd_get_hw_features(struct hostapd_iface *iface)
 {
 	struct hostapd_data *hapd = iface->bss[0];
@@ -98,6 +97,8 @@ int hostapd_get_hw_features(struct hostapd_iface *iface)
 	hostapd_free_hw_features(iface->hw_features, iface->num_hw_features);
 	iface->hw_features = modes;
 	iface->num_hw_features = num_modes;
+
+	u32 bw_mask = 0;
 
 	for (i = 0; i < num_modes; i++) {
 		struct hostapd_hw_modes *feature = &modes[i];
@@ -131,6 +132,8 @@ int hostapd_get_hw_features(struct hostapd_iface *iface)
 			if (feature->channels[j].flag & HOSTAPD_CHAN_DISABLED)
 				continue;
 
+			bw_mask |= feature->channels[j].allowed_bw;
+
 			wpa_printf(MSG_MSGDUMP, "Allowed channel: mode=%d "
 				   "chan=%d freq=%d MHz max_tx_power=%d dBm%s",
 				   feature->mode,
@@ -141,6 +144,21 @@ int hostapd_get_hw_features(struct hostapd_iface *iface)
 		}
 	}
 
+	if (!(bw_mask & HOSTAPD_CHAN_WIDTH_40P) && !(bw_mask & HOSTAPD_CHAN_WIDTH_40M)
+			&& !(bw_mask & HOSTAPD_CHAN_WIDTH_80)
+			&& !(bw_mask & HOSTAPD_CHAN_WIDTH_160)) {
+		iface->conf->secondary_channel = 0;
+		iface->conf->vht_oper_centr_freq_seg0_idx = 0;
+		iface->conf->vht_oper_centr_freq_seg1_idx = 0;
+		iface->conf->vht_oper_chwidth = 0;
+		wpa_printf(MSG_INFO, "Fallback to 20 MHz if only 10/20 MHz bw allowed");
+	} else if (!(bw_mask & HOSTAPD_CHAN_WIDTH_80) &&
+			!(bw_mask & HOSTAPD_CHAN_WIDTH_160)) {
+		iface->conf->vht_oper_centr_freq_seg0_idx = 0;
+		iface->conf->vht_oper_centr_freq_seg1_idx = 0;
+		iface->conf->vht_oper_chwidth = 0;
+		wpa_printf(MSG_INFO, "Reset vht param if 80/160 MHz bw is not allowed");
+	}
 	return 0;
 }
 
